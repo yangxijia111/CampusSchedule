@@ -15,7 +15,9 @@ export function SemesterPage() {
     <div>
       <div className="card">
         <h2>学期管理</h2>
-        {semesters.length === 0 && <p className="muted">暂无学期数据。</p>}
+        {semesters.length === 0 && (
+          <p className="muted">暂无学期数据。到首页导入课表或体验示例课表。</p>
+        )}
         {semesters.map((semester) => {
           const courses = coursesBySemester[semester.id] ?? [];
           const isActive = semester.id === activeSemesterId;
@@ -58,8 +60,7 @@ export function SemesterPage() {
                   <button
                     className="btn danger"
                     onClick={() => setConfirmingId(semester.id)}
-                    disabled={semesters.length <= 1}
-                    title={semesters.length <= 1 ? '至少保留一个学期' : undefined}
+                    title="删除后可在首页重新导入或体验示例课表"
                   >
                     删除
                   </button>

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { Course, PeriodDefinition, Semester } from '@campusschedule/core';
 import { totalWeeksOf, weekOfDate } from '@campusschedule/core';
+import type { ImportRecord } from '@campusschedule/storage';
 import { mockCourses, mockPeriodTimes, mockSemester, MOCK_SCHOOL_ID } from '../mock/mock-timetable';
 import { getRepository, periodTimesKey } from '../lib/storage';
 import { DEFAULT_SETTINGS, SETTINGS_KEY, mergeSettings } from '../lib/settings';
@@ -12,15 +13,19 @@ interface AppState {
   activeSemesterId: string;
   coursesBySemester: Record<string, Course[]>;
   periodTimesBySemester: Record<string, PeriodDefinition[]>;
+  /** 每个学期最近一次导入记录（用于判断数据来源，如示例数据 isMock）。 */
+  latestImportBySemester: Record<string, ImportRecord>;
   settings: AppSettings;
   /** 用户手动选择的周（null = 跟随当前周）。 */
   selectedWeek: number | null;
 
-  /** 从 IndexedDB 加载数据；首次使用时写入示例课表。 */
+  /** 从 IndexedDB 加载数据。没有数据时保持空状态，由用户显式选择后续动作。 */
   hydrate(): Promise<void>;
   activeSemester(): Semester | null;
   activeCourses(): Course[];
   activePeriodTimes(): PeriodDefinition[];
+  /** 当前学期课表是否来自示例数据（依据最近导入记录的 isMock）。 */
+  activeSemesterIsMock(): boolean;
   /** 当前真实教学周（依据系统日期；开学前为 0）。 */
   currentWeek(): number;
   /** 展示用周：手动选择优先。 */
@@ -35,7 +40,13 @@ interface AppState {
     courses: Course[],
     periodTimes?: PeriodDefinition[],
   ) => Promise<void>;
+  /** 保存导入记录并更新内存中的最近导入索引。 */
+  recordImport: (record: ImportRecord) => Promise<void>;
   deleteSemesterData: (semesterId: string) => Promise<void>;
+  /** 用户显式点击“体验示例课表”时写入示例数据（开箱演示）。 */
+  loadDemoTimetable: () => Promise<void>;
+  /** 清空全部本地数据并回到空状态。 */
+  clearAllData: () => Promise<void>;
 }
 
 function todayIsoDate(): string {
@@ -48,14 +59,46 @@ function todayIsoDate(): string {
 /** hydrate 防重入（StrictMode 双渲染 / 快速刷新）。 */
 let hydrating = false;
 
-/** 首次使用时写入示例课表（标记 isMock），保证开箱可用。 */
-async function seedMockData() {
+/** 从导入记录中取最近一条（按 importedAt 比较）。 */
+function latestImportOf(records: ImportRecord[]): ImportRecord | null {
+  if (records.length === 0) return null;
+  return records.reduce((latest, record) =>
+    record.importedAt > latest.importedAt ? record : latest,
+  );
+}
+
+/** 每学期批量加载课程、作息与最近导入记录。 */
+async function loadSemesterState(
+  semesters: Semester[],
+): Promise<{
+  coursesBySemester: Record<string, Course[]>;
+  periodTimesBySemester: Record<string, PeriodDefinition[]>;
+  latestImportBySemester: Record<string, ImportRecord>;
+}> {
   const repo = getRepository();
-  await repo.saveSchool({ id: MOCK_SCHOOL_ID, displayName: '示例大学（Mock）' });
-  await repo.saveSemester(mockSemester);
-  await repo.replaceSemesterCourses(mockSemester.id, mockCourses);
-  await repo.setSetting(periodTimesKey(mockSemester.id), mockPeriodTimes);
-  await repo.saveImportRecord({
+  const coursesBySemester: Record<string, Course[]> = {};
+  const periodTimesBySemester: Record<string, PeriodDefinition[]> = {};
+  const latestImportBySemester: Record<string, ImportRecord> = {};
+  for (const semester of semesters) {
+    coursesBySemester[semester.id] = await repo.getCourses(semester.id);
+    const periodTimes = await repo.getSetting<PeriodDefinition[]>(
+      periodTimesKey(semester.id),
+    );
+    if (periodTimes) {
+      periodTimesBySemester[semester.id] = periodTimes;
+    }
+    const latest = latestImportOf(await repo.getImportRecords(semester.id));
+    if (latest) {
+      latestImportBySemester[semester.id] = latest;
+    }
+  }
+  return { coursesBySemester, periodTimesBySemester, latestImportBySemester };
+}
+
+/** 写入示例课表数据（标记 isMock 的导入记录），仅在用户显式请求时调用。 */
+async function seedMockData(): Promise<ImportRecord> {
+  const repo = getRepository();
+  const record: ImportRecord = {
     id: 'seed-' + mockSemester.id,
     semesterId: mockSemester.id,
     importedAt: new Date().toISOString(),
@@ -66,7 +109,13 @@ async function seedMockData() {
     sessionCount: mockCourses.reduce((n, c) => n + c.sessions.length, 0),
     warningCount: 0,
     isMock: true,
-  });
+  };
+  await repo.saveSchool({ id: MOCK_SCHOOL_ID, displayName: '示例大学（Mock）' });
+  await repo.saveSemester(mockSemester);
+  await repo.replaceSemesterCourses(mockSemester.id, mockCourses);
+  await repo.setSetting(periodTimesKey(mockSemester.id), mockPeriodTimes);
+  await repo.saveImportRecord(record);
+  return record;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -75,6 +124,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   activeSemesterId: '',
   coursesBySemester: {},
   periodTimesBySemester: {},
+  latestImportBySemester: {},
   settings: DEFAULT_SETTINGS,
   selectedWeek: null,
 
@@ -83,32 +133,20 @@ export const useAppStore = create<AppState>((set, get) => ({
     hydrating = true;
     try {
       const repo = getRepository();
-      let semesters = await repo.getSemesters();
+      const semesters = await repo.getSemesters();
+      const { coursesBySemester, periodTimesBySemester, latestImportBySemester } =
+        await loadSemesterState(semesters);
 
-      if (semesters.length === 0) {
-        await seedMockData();
-        semesters = [mockSemester];
-      }
-
-      const coursesBySemester: Record<string, Course[]> = {};
-      const periodTimesBySemester: Record<string, PeriodDefinition[]> = {};
-      for (const semester of semesters) {
-        coursesBySemester[semester.id] = await repo.getCourses(semester.id);
-        const periodTimes = await repo.getSetting<PeriodDefinition[]>(
-          periodTimesKey(semester.id),
-        );
-        if (periodTimes) {
-          periodTimesBySemester[semester.id] = periodTimes;
-        }
-      }
-
-      const savedActive = await repo.getSetting<string>('activeSemesterId');
-      const activeSemesterId = semesters.some((s) => s.id === savedActive)
-        ? savedActive!
-        : semesters[semesters.length - 1]!.id;
+      const savedActive = semesters.length > 0 ? await repo.getSetting<string>('activeSemesterId') : undefined;
+      const activeSemesterId =
+        semesters.length > 0
+          ? semesters.some((s) => s.id === savedActive)
+            ? savedActive!
+            : semesters[semesters.length - 1]!.id
+          : '';
       // 设置从 IndexedDB 恢复，与默认值合并（脏数据逐字段回落）
       const settings = mergeSettings(await repo.getSetting(SETTINGS_KEY));
-      set({ hydrated: true, semesters, activeSemesterId, coursesBySemester, periodTimesBySemester, settings });
+      set({ hydrated: true, semesters, activeSemesterId, coursesBySemester, periodTimesBySemester, latestImportBySemester, settings });
     } finally {
       hydrating = false;
     }
@@ -125,6 +163,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   activePeriodTimes: () => {
     const state = get();
     return state.periodTimesBySemester[state.activeSemesterId] ?? [];
+  },
+  activeSemesterIsMock: () => {
+    const state = get();
+    return state.latestImportBySemester[state.activeSemesterId]?.isMock ?? false;
   },
   currentWeek: () => {
     const semester = get().activeSemester();
@@ -176,6 +218,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       activeSemesterId: semester.id,
     }));
   },
+  recordImport: async (record) => {
+    await getRepository().saveImportRecord(record);
+    set((state) => ({
+      latestImportBySemester: { ...state.latestImportBySemester, [record.semesterId]: record },
+    }));
+  },
   deleteSemesterData: async (semesterId) => {
     const repo = getRepository();
     await repo.deleteSemester(semesterId);
@@ -185,11 +233,42 @@ export const useAppStore = create<AppState>((set, get) => ({
       delete coursesBySemester[semesterId];
       const periodTimesBySemester = { ...state.periodTimesBySemester };
       delete periodTimesBySemester[semesterId];
+      const latestImportBySemester = { ...state.latestImportBySemester };
+      delete latestImportBySemester[semesterId];
       const nextActive =
         state.activeSemesterId === semesterId
           ? (semesters[0]?.id ?? '')
           : state.activeSemesterId;
-      return { semesters, coursesBySemester, periodTimesBySemester, activeSemesterId: nextActive };
+      return { semesters, coursesBySemester, periodTimesBySemester, latestImportBySemester, activeSemesterId: nextActive };
+    });
+  },
+  loadDemoTimetable: async () => {
+    // 用户显式请求示例数据（Empty State 按钮）；不自动触发
+    const record = await seedMockData();
+    const { coursesBySemester, periodTimesBySemester, latestImportBySemester } =
+      await loadSemesterState([mockSemester]);
+    set((state) => ({
+      semesters: state.semesters.some((s) => s.id === mockSemester.id)
+        ? state.semesters.map((s) => (s.id === mockSemester.id ? mockSemester : s))
+        : [...state.semesters, mockSemester],
+      coursesBySemester: { ...state.coursesBySemester, ...coursesBySemester },
+      periodTimesBySemester: { ...state.periodTimesBySemester, ...periodTimesBySemester },
+      latestImportBySemester: { ...state.latestImportBySemester, ...latestImportBySemester, [record.semesterId]: record },
+      activeSemesterId: mockSemester.id,
+      selectedWeek: null,
+    }));
+  },
+  clearAllData: async () => {
+    await getRepository().clearAll();
+    // 设置随“清除全部本地数据”一并清除（语义即全部本地数据）
+    set({
+      semesters: [],
+      activeSemesterId: '',
+      coursesBySemester: {},
+      periodTimesBySemester: {},
+      latestImportBySemester: {},
+      selectedWeek: null,
+      settings: DEFAULT_SETTINGS,
     });
   },
 }));
@@ -212,6 +291,11 @@ export function useActiveCourses(): Course[] {
 
 export function useActivePeriodTimes(): PeriodDefinition[] {
   return useAppStore((s) => s.periodTimesBySemester[s.activeSemesterId] ?? EMPTY_PERIOD_TIMES);
+}
+
+/** 返回 boolean，selector 结果天然稳定。 */
+export function useActiveSemesterIsMock(): boolean {
+  return useAppStore((s) => s.latestImportBySemester[s.activeSemesterId]?.isMock ?? false);
 }
 
 /** 以下三个返回原始 number，selector 结果天然稳定。 */

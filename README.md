@@ -69,7 +69,7 @@ pnpm build          # 构建全部包（packages → apps）
 #### Web 端
 
 1. 构建后用任意静态服务器托管 `apps/web/dist/`，或直接运行 `pnpm --filter @campusschedule/web preview`；
-2. 首次打开会自动加载一份示例课表（可在设置中一键清除）；
+2. 首次打开显示空状态，可点击"体验示例课表"快速了解应用（示例数据不会自动出现，清除全部数据后也不会自动恢复）；
 3. 导入真实课表：使用扩展导出 `.campusschedule.json` 文件 → 打开"导入中心"上传 → 预览确认后导入。
 
 #### 浏览器扩展
@@ -229,7 +229,7 @@ pnpm build          # Build all packages (packages → apps)
 #### Web app
 
 1. Host `apps/web/dist/` with any static server after building, or run `pnpm --filter @campusschedule/web preview`;
-2. A sample timetable is loaded automatically on first launch (you can wipe it in Settings);
+2. The app opens with an empty state — click "体验示例课表" to try it with a sample timetable (sample data is never loaded automatically, and it does not come back after wiping all data);
 3. To import a real timetable: export `.campusschedule.json` via the extension → open the Import Center → upload → preview → confirm.
 
 #### Browser extension

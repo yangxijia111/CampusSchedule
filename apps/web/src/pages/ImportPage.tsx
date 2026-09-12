@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/use-app-store';
-import { getRepository } from '../lib/storage';
 import {
   buildImportPreview,
   parseImportFileContent,
@@ -23,6 +22,7 @@ export function ImportPage() {
 
   const coursesBySemester = useAppStore((s) => s.coursesBySemester);
   const replaceSemesterData = useAppStore((s) => s.replaceSemesterData);
+  const recordImport = useAppStore((s) => s.recordImport);
 
   async function handleFile(file: File): Promise<void> {
     setAcknowledgeAnomaly(false);
@@ -48,8 +48,7 @@ export function ImportPage() {
     try {
       const { envelope } = state;
       await replaceSemesterData(envelope.semester, envelope.courses);
-      const repo = getRepository();
-      await repo.saveImportRecord({
+      await recordImport({
         id: 'imp-' + crypto.randomUUID(),
         semesterId: envelope.semester.id,
         importedAt: new Date().toISOString(),

@@ -5,6 +5,7 @@ import {
   icsFileName,
   sessionsForWeek,
 } from '@campusschedule/core';
+import { EmptyState } from '../components/EmptyState';
 import { NextClassCard } from '../components/NextClassCard';
 import { TimetableGrid } from '../components/TimetableGrid';
 import { WeekSwitcher } from '../components/WeekSwitcher';
@@ -13,6 +14,7 @@ import {
   useActiveCourses,
   useActivePeriodTimes,
   useActiveSemester,
+  useActiveSemesterIsMock,
   useCurrentWeek,
   useDisplayWeek,
   useTotalWeeks,
@@ -27,14 +29,10 @@ export function TodayPage() {
   const currentWeek = useCurrentWeek();
   const totalWeeks = useTotalWeeks();
   const settings = useAppStore((s) => s.settings);
+  const isMock = useActiveSemesterIsMock();
 
   if (!semester) {
-    return (
-      <div className="card empty-state">
-        <p>还没有学期数据。</p>
-        <p>请到导入中心导入课表。</p>
-      </div>
-    );
+    return <EmptyState />;
   }
 
   const allWeekdays: Weekday[] =
@@ -122,9 +120,11 @@ export function TodayPage() {
         />
       )}
 
-      <p className="note">
-        当前为示例课表数据（开发 Fixture）。导入真实课表后此处将显示你的个人课表。
-      </p>
+      {isMock && (
+        <p className="note">
+          当前为示例课表数据。导入真实课表后此处将显示你的个人课表。
+        </p>
+      )}
     </div>
   );
 }
