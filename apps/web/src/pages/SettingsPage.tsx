@@ -1,8 +1,117 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { exportBackup } from '@campusschedule/storage';
+import type { PeriodDefinition } from '@campusschedule/core';
 import { useAppStore } from '../store/use-app-store';
+import { useActivePeriodTimes, useActiveSemester } from '../store/use-app-store';
 import { getRepository } from '../lib/storage';
+
+/**
+ * 作息时间编辑器：编辑当前学期各节次的上下课时间。
+ * 导入的作息可直接修改后保存（periodTimes:<semesterId>）。
+ */
+function PeriodTimesEditor() {
+  const semester = useActiveSemester();
+  const periodTimes = useActivePeriodTimes();
+  const savePeriodTimes = useAppStore((s) => s.savePeriodTimes);
+  const [draft, setDraft] = useState<PeriodDefinition[] | null>(null);
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [savedMessage, setSavedMessage] = useState('');
+
+  // 未开始编辑时跟随 store（切学期后自动同步）
+  const rows = draft ?? [...periodTimes].sort((a, b) => a.period - b.period);
+
+  if (!semester) {
+    return <p className="muted">还没有学期数据，先到首页导入课表或体验示例课表。</p>;
+  }
+
+  function update(index: number, field: 'startTime' | 'endTime', value: string): void {
+    setSavedMessage('');
+    setDraft(rows.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
+  }
+
+  function addRow(): void {
+    setSavedMessage('');
+    const nextPeriod = (rows[rows.length - 1]?.period ?? 0) + 1;
+    setDraft([...rows, { period: nextPeriod, startTime: '08:00', endTime: '08:45' }]);
+  }
+
+  function removeRow(index: number): void {
+    setSavedMessage('');
+    const filtered = rows.filter((_, i) => i !== index);
+    // 删除后重排节次号，保持 1..N 连续
+    setDraft(filtered.map((row, i) => ({ ...row, period: i + 1 })));
+  }
+
+  async function handleSave(): Promise<void> {
+    setError('');
+    setSaving(true);
+    try {
+      await savePeriodTimes(semester.id, rows);
+      setDraft(null);
+      setSavedMessage('作息时间已保存。');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div>
+      {rows.length === 0 && (
+        <p className="muted">当前学期还没有作息时间。请按学校作息添加各节次上下课时间。</p>
+      )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {rows.map((row, index) => (
+          <div key={row.period} className="settings-row" style={{ padding: 0 }}>
+            <div>第 {row.period} 节</div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input
+                type="time"
+                value={row.startTime}
+                onChange={(e) => update(index, 'startTime', e.target.value)}
+                aria-label={'第 ' + row.period + ' 节开始时间'}
+              />
+              <span>—</span>
+              <input
+                type="time"
+                value={row.endTime}
+                onChange={(e) => update(index, 'endTime', e.target.value)}
+                aria-label={'第 ' + row.period + ' 节结束时间'}
+              />
+              <button className="btn" onClick={() => removeRow(index)} aria-label={'删除第 ' + row.period + ' 节'}>
+                删除
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+        <button className="btn" onClick={addRow}>
+          添加节次
+        </button>
+        <button className="btn primary" disabled={saving || rows.length === 0} onClick={() => void handleSave()}>
+          {saving ? '保存中…' : '保存作息时间'}
+        </button>
+        {draft !== null && (
+          <button
+            className="btn"
+            onClick={() => {
+              setDraft(null);
+              setError('');
+            }}
+          >
+            放弃修改
+          </button>
+        )}
+      </div>
+      {error && <p style={{ color: 'var(--danger)', marginTop: 8 }}>{error}</p>}
+      {savedMessage && <p className="note">{savedMessage}</p>}
+    </div>
+  );
+}
 
 export function SettingsPage() {
   const settings = useAppStore((s) => s.settings);
@@ -85,6 +194,15 @@ export function SettingsPage() {
             <option value={7}>周日</option>
           </select>
         </div>
+      </div>
+
+      <div className="card">
+        <h2>作息时间（当前学期）</h2>
+        <p className="muted" style={{ marginTop: 0 }}>
+          各节次的上下课时间，用于"下一节课"提醒、课表时间显示与日历导出。
+          学校导入的作息可直接在此修改。
+        </p>
+        <PeriodTimesEditor />
       </div>
 
       <div className="card">
