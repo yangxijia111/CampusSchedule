@@ -1,0 +1,123 @@
+{
+  "protocolVersion": 1,
+  "source": {
+    "schoolId": "e2e-school",
+    "adapterVersion": "0.1.0",
+    "pageUrl": "https://jw.e2e-school.example/timetable",
+    "importedAt": "2026-09-12T10:00:00.000Z"
+  },
+  "semester": {
+    "id": "e2e-overlap-2026-2027-1",
+    "schoolId": "e2e-school",
+    "academicYear": "2026-2027",
+    "term": 1,
+    "displayName": "E2E 冲突测试学期",
+    "startDate": "2026-09-07",
+    "totalWeeks": 16
+  },
+  "courses": [
+    {
+      "id": "e2e-ov-course-1",
+      "semesterId": "e2e-overlap-2026-2027-1",
+      "name": "重叠课A",
+      "teacherNames": ["教师A"],
+      "sessions": [
+        {
+          "id": "e2e-ov-course-1-s1",
+          "courseId": "e2e-ov-course-1",
+          "weekday": 1,
+          "startPeriod": 1,
+          "endPeriod": 2,
+          "weeks": [1, 2, 3, 4, 5, 6, 7, 8],
+          "location": "A101"
+        }
+      ]
+    },
+    {
+      "id": "e2e-ov-course-2",
+      "semesterId": "e2e-overlap-2026-2027-1",
+      "name": "重叠课B",
+      "teacherNames": ["教师B"],
+      "sessions": [
+        {
+          "id": "e2e-ov-course-2-s1",
+          "courseId": "e2e-ov-course-2",
+          "weekday": 1,
+          "startPeriod": 2,
+          "endPeriod": 3,
+          "weeks": [1, 2, 3, 4, 5, 6, 7, 8],
+          "location": "B202"
+        }
+      ]
+    },
+    {
+      "id": "e2e-ov-course-3",
+      "semesterId": "e2e-overlap-2026-2027-1",
+      "name": "三门冲突C",
+      "teacherNames": ["教师C"],
+      "sessions": [
+        {
+          "id": "e2e-ov-course-3-s1",
+          "courseId": "e2e-ov-course-3",
+          "weekday": 3,
+          "startPeriod": 1,
+          "endPeriod": 2,
+          "weeks": [1, 2, 3, 4, 5, 6, 7, 8],
+          "location": "C303"
+        }
+      ]
+    },
+    {
+      "id": "e2e-ov-course-4",
+      "semesterId": "e2e-overlap-2026-2027-1",
+      "name": "三门冲突D",
+      "teacherNames": ["教师D"],
+      "sessions": [
+        {
+          "id": "e2e-ov-course-4-s1",
+          "courseId": "e2e-ov-course-4",
+          "weekday": 3,
+          "startPeriod": 1,
+          "endPeriod": 2,
+          "weeks": [1, 2, 3, 4, 5, 6, 7, 8],
+          "location": "D404"
+        }
+      ]
+    },
+    {
+      "id": "e2e-ov-course-5",
+      "semesterId": "e2e-overlap-2026-2027-1",
+      "name": "三门冲突E",
+      "teacherNames": ["教师E"],
+      "sessions": [
+        {
+          "id": "e2e-ov-course-5-s1",
+          "courseId": "e2e-ov-course-5",
+          "weekday": 3,
+          "startPeriod": 2,
+          "endPeriod": 3,
+          "weeks": [1, 2, 3, 4, 5, 6, 7, 8],
+          "location": "E505"
+        }
+      ]
+    },
+    {
+      "id": "e2e-ov-course-6",
+      "semesterId": "e2e-overlap-2026-2027-1",
+      "name": "正常课F",
+      "teacherNames": ["教师F"],
+      "sessions": [
+        {
+          "id": "e2e-ov-course-6-s1",
+          "courseId": "e2e-ov-course-6",
+          "weekday": 5,
+          "startPeriod": 1,
+          "endPeriod": 2,
+          "weeks": [1, 2, 3, 4, 5, 6, 7, 8],
+          "location": "F606"
+        }
+      ]
+    }
+  ],
+  "warnings": []
+}

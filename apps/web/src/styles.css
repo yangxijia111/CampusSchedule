@@ -220,12 +220,18 @@ a {
   overflow: hidden;
 }
 
-.tt-cell {
-  border-top: 1px solid var(--border);
-  border-left: 1px solid var(--border);
-  padding: 6px;
-  min-height: 56px;
+/* 星期列容器：内部课程块按节次百分比绝对定位（interval layout） */
+.tt-day {
   position: relative;
+  border-left: 1px solid var(--border);
+  border-top: 1px solid var(--border);
+  background-image: linear-gradient(to bottom, var(--border) 1px, transparent 1px);
+  background-size: 100% calc(100% / var(--tt-rows, 10));
+  overflow: hidden;
+}
+
+.tt-day.today-col {
+  background-color: var(--primary-soft);
 }
 
 .tt-head {
@@ -267,15 +273,8 @@ a {
   color: var(--text);
 }
 
-/* 课程块 */
-.course-stack {
-  display: flex;
-  gap: 4px;
-  height: 100%;
-}
-
+/* 课程块（绝对定位由组件内联样式给出，样式只负责外观） */
 .course-block {
-  flex: 1;
   min-width: 0;
   border-radius: 8px;
   padding: 6px 8px;
