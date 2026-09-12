@@ -30,6 +30,9 @@ export function TodayPage() {
   const totalWeeks = useTotalWeeks();
   const settings = useAppStore((s) => s.settings);
   const isMock = useActiveSemesterIsMock();
+  const semesters = useAppStore((s) => s.semesters);
+  const activeSemesterId = useAppStore((s) => s.activeSemesterId);
+  const setActiveSemester = useAppStore((s) => s.setActiveSemester);
 
   if (!semester) {
     return <EmptyState />;
@@ -66,8 +69,22 @@ export function TodayPage() {
     <div>
       <div className="today-header">
         <span className="today-badge">今天是 {todayIsoDate()}</span>
+        {semesters.length > 1 && (
+          <select
+            value={activeSemesterId}
+            onChange={(e) => void setActiveSemester(e.target.value)}
+            aria-label="切换学期"
+            title="切换当前学期"
+          >
+            {semesters.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.displayName}
+              </option>
+            ))}
+          </select>
+        )}
         <span className="muted">
-          {semester.displayName} · 第 {displayWeek} 周
+          {semesters.length > 1 ? '第 ' + displayWeek + ' 周' : semester.displayName + ' · 第 ' + displayWeek + ' 周'}
           {currentWeek > 0 ? ' / 共 ' + totalWeeks + ' 周' : ''}
         </span>
         <button className="btn" onClick={exportIcs} style={{ marginLeft: 'auto' }}>

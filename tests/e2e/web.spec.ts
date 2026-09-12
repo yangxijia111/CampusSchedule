@@ -66,9 +66,9 @@ test.describe('CampusSchedule Web', () => {
     await page.getByRole('button', { name: '确认导入' }).click();
     await expect(page.getByText('导入成功')).toBeVisible({ timeout: 10_000 });
 
-    // 自动跳转回课表，显示新学期
-    await expect(page.getByText('E2E 测试学期')).toBeVisible({ timeout: 5_000 });
-    await expect(page.getByText('E2E高等数学').first()).toBeVisible();
+    // 自动跳转回课表，进入新学期（多学期时以切换器取值断言）
+    await expect(page.getByText('E2E高等数学').first()).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByLabel('切换学期')).toHaveValue('e2e-2026-2027-1');
 
     // 真实导入数据不得显示示例数据提示
     await expect(page.getByText('当前为示例课表数据')).toHaveCount(0);

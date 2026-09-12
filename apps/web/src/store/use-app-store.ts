@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { Course, PeriodDefinition, Semester } from '@campusschedule/core';
-import { totalWeeksOf, weekOfDate } from '@campusschedule/core';
+import { semesterSchema, totalWeeksOf, validatePeriodDefinitions, weekOfDate } from '@campusschedule/core';
 import type { ImportRecord } from '@campusschedule/storage';
 import { mockCourses, mockPeriodTimes, mockSemester, MOCK_SCHOOL_ID } from '../mock/mock-timetable';
 import { getRepository, periodTimesKey } from '../lib/storage';
@@ -34,6 +34,15 @@ interface AppState {
 
   setSelectedWeek: (week: number | null) => void;
   updateSettings: (patch: Partial<AppSettings>) => void;
+  /** 切换当前学期并持久化 activeSemesterId。 */
+  setActiveSemester: (semesterId: string) => Promise<void>;
+  /** 修改学期校历（开学日期 / 总周数）并持久化。 */
+  updateSemesterCalendar: (
+    semesterId: string,
+    patch: { startDate?: string; totalWeeks?: number },
+  ) => Promise<void>;
+  /** 保存某学期的作息时间并持久化。 */
+  savePeriodTimes: (semesterId: string, definitions: PeriodDefinition[]) => Promise<void>;
   /** 用导入数据替换某学期的课表（Phase 8 起使用），同步落库。 */
   replaceSemesterData: (
     semester: Semester,
@@ -189,6 +198,40 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   setSelectedWeek: (week) => set({ selectedWeek: week }),
+  setActiveSemester: async (semesterId) => {
+    const exists = get().semesters.some((s) => s.id === semesterId);
+    if (!exists) return;
+    set({ activeSemesterId: semesterId, selectedWeek: null });
+    await getRepository().setSetting('activeSemesterId', semesterId);
+  },
+  updateSemesterCalendar: async (semesterId, patch) => {
+    const current = get().semesters.find((s) => s.id === semesterId);
+    if (!current) throw new Error('学期不存在');
+    const next: Semester = {
+      ...current,
+      ...(patch.startDate !== undefined ? { startDate: patch.startDate } : {}),
+      ...(patch.totalWeeks !== undefined ? { totalWeeks: patch.totalWeeks } : {}),
+    };
+    // 复用 core 的学期 schema 校验（日期格式 / 周次范围）
+    const check = semesterSchema.safeParse(next);
+    if (!check.success) {
+      throw new Error(check.error.issues[0]?.message ?? '校历数据不合法');
+    }
+    await getRepository().saveSemester(next);
+    set((state) => ({
+      semesters: state.semesters.map((s) => (s.id === semesterId ? next : s)),
+    }));
+  },
+  savePeriodTimes: async (semesterId, definitions) => {
+    const check = validatePeriodDefinitions(definitions);
+    if (!check.ok) {
+      throw new Error(check.message);
+    }
+    await getRepository().setSetting(periodTimesKey(semesterId), definitions);
+    set((state) => ({
+      periodTimesBySemester: { ...state.periodTimesBySemester, [semesterId]: definitions },
+    }));
+  },
   updateSettings: (patch) => {
     // UI 立即生效；持久化异步进行，失败仅告警（不产生未处理 Promise 拒绝）
     const settings: AppSettings = { ...get().settings, ...patch };
