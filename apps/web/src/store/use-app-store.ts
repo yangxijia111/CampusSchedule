@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import type { Course, PeriodDefinition, Semester } from '@campusschedule/core';
 import { semesterSchema, totalWeeksOf, validatePeriodDefinitions, weekOfDate } from '@campusschedule/core';
 import type { ImportRecord } from '@campusschedule/storage';
+import type { BackupSummary } from '@campusschedule/storage';
+import { importBackup } from '@campusschedule/storage';
 import { mockCourses, mockPeriodTimes, mockSemester, MOCK_SCHOOL_ID } from '../mock/mock-timetable';
 import { getRepository, periodTimesKey } from '../lib/storage';
 import { DEFAULT_SETTINGS, SETTINGS_KEY, mergeSettings } from '../lib/settings';
@@ -56,6 +58,11 @@ interface AppState {
   loadDemoTimetable: () => Promise<void>;
   /** 清空全部本地数据并回到空状态。 */
   clearAllData: () => Promise<void>;
+  /**
+   * 从备份恢复全部数据（深度校验 + 事务式写入），成功后刷新全部状态。
+   * 校验或写入失败抛错，本地数据尽量保持不变。
+   */
+  restoreBackup: (parsedBackup: unknown) => Promise<BackupSummary>;
 }
 
 function todayIsoDate(): string {
@@ -104,6 +111,33 @@ async function loadSemesterState(
   return { coursesBySemester, periodTimesBySemester, latestImportBySemester };
 }
 
+/** 读取 IndexedDB 全部数据并组装 store 状态（hydrate / 恢复备份后共用）。 */
+async function readAllFromDb() {
+  const repo = getRepository();
+  const semesters = await repo.getSemesters();
+  const { coursesBySemester, periodTimesBySemester, latestImportBySemester } =
+    await loadSemesterState(semesters);
+
+  const savedActive = semesters.length > 0 ? await repo.getSetting<string>('activeSemesterId') : undefined;
+  const activeSemesterId =
+    semesters.length > 0
+      ? semesters.some((s) => s.id === savedActive)
+        ? savedActive!
+        : semesters[semesters.length - 1]!.id
+      : '';
+  // 设置从 IndexedDB 恢复，与默认值合并（脏数据逐字段回落）
+  const settings = mergeSettings(await repo.getSetting(SETTINGS_KEY));
+  return {
+    hydrated: true,
+    semesters,
+    activeSemesterId,
+    coursesBySemester,
+    periodTimesBySemester,
+    latestImportBySemester,
+    settings,
+  };
+}
+
 /** 写入示例课表数据（标记 isMock 的导入记录），仅在用户显式请求时调用。 */
 async function seedMockData(): Promise<ImportRecord> {
   const repo = getRepository();
@@ -141,21 +175,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (hydrating || get().hydrated) return;
     hydrating = true;
     try {
-      const repo = getRepository();
-      const semesters = await repo.getSemesters();
-      const { coursesBySemester, periodTimesBySemester, latestImportBySemester } =
-        await loadSemesterState(semesters);
-
-      const savedActive = semesters.length > 0 ? await repo.getSetting<string>('activeSemesterId') : undefined;
-      const activeSemesterId =
-        semesters.length > 0
-          ? semesters.some((s) => s.id === savedActive)
-            ? savedActive!
-            : semesters[semesters.length - 1]!.id
-          : '';
-      // 设置从 IndexedDB 恢复，与默认值合并（脏数据逐字段回落）
-      const settings = mergeSettings(await repo.getSetting(SETTINGS_KEY));
-      set({ hydrated: true, semesters, activeSemesterId, coursesBySemester, periodTimesBySemester, latestImportBySemester, settings });
+      set(await readAllFromDb());
     } finally {
       hydrating = false;
     }
@@ -313,6 +333,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       selectedWeek: null,
       settings: DEFAULT_SETTINGS,
     });
+  },
+  restoreBackup: async (parsedBackup) => {
+    const summary = await importBackup(getRepository(), parsedBackup);
+    // 恢复成功后整体刷新（含设置 / 当前学期 / 示例标记）
+    set({ ...(await readAllFromDb()), selectedWeek: null });
+    return summary;
   },
 }));
 

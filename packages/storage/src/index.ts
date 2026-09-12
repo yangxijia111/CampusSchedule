@@ -7,5 +7,5 @@ export type {
   SettingRow,
 } from './db';
 export { TimetableRepository } from './repository';
-export { exportBackup, importBackup, isValidBackupShape } from './backup';
-export type { BackupFile } from './backup';
+export { exportBackup, importBackup, isValidBackupShape, validateBackup } from './backup';
+export type { BackupFile, BackupSummary, BackupValidation } from './backup';
