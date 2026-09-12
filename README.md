@@ -26,17 +26,20 @@ CampusSchedule（校园课表助手）由两部分组成：
 
 ### 功能特性
 
-- 📅 **周课表**：网格视图、自动定位当前周、自由切换周次
+- 📅 **周课表**：网格视图、自动定位当前周、自由切换周次；部分重叠课程错列排布不叠压
 - 🕐 **今日概览**：正在上课 / 下一节课 / 今日已结束状态卡片
+- 📱 **移动端优先**：手机上默认"今天"纵向时间轴，支持 今天 / 明天 / 本周 切换，主要内容无需横向滚动
 - 📖 **课程详情**：课程信息、上课地点、任课教师、周次安排
-- 🗓️ **学期管理**：多学期支持，可设置第一教学周起始日期与总周数
-- ⚠️ **冲突检测**：同时段课程并排显示，并以横幅提示
-- 📥 **JSON 导入（协议 v1）**：导入前预览确认、数据量异常拦截、导入 Diff 统计
+- 🗓️ **学期管理**：多学期支持、学期切换（持久化）、校历编辑（开学日期 / 总周数）
+- ⏰ **作息时间编辑**：按学期配置各节次上下课时间，导入值可人工修正
+- ⚠️ **冲突检测**：同时段课程并排显示，并以横幅提示，不丢弃任何课程
+- 📥 **JSON 导入（协议 v1）**：导入前预览确认、数据量异常拦截、导入 Diff 统计、警告人话化、文件大小上限
 - 📤 **多种导出**：ICS 日历（离散周逐事件生成 + VALARM 提醒）、全量数据备份 JSON、`.campusschedule.json`
-- 💾 **本地持久化**：IndexedDB 存储、备份导出、一键清除全部数据
+- 💾 **备份恢复**：深度校验（版本 / 结构 / 引用完整性）+ 事务式恢复，损坏备份不触碰本地数据
+- 🔧 **应用设置持久化**：提醒分钟数、周末列、24 小时制、周起始日，刷新后保持
 - 🧩 **浏览器扩展**：学校域名检测、课表页面语义与结构识别、登录页自动禁用、脱敏课表快照生成、调试面板
-- 📲 **PWA**：可安装到桌面，支持离线访问
-- ✅ **质量保障**：251 个单元测试（Vitest）+ Playwright E2E 测试
+- 📲 **PWA**：可安装到桌面，支持离线访问；同一构建产物支持根路径与子路径（GitHub Pages）部署
+- ✅ **质量保障**：285 个单元测试（Vitest）+ Playwright E2E（根路径与子路径双项目）
 
 ### 截图预览
 
@@ -116,7 +119,7 @@ pnpm build          # 构建全部包（packages → apps）
 ```bash
 pnpm install            # 安装依赖
 pnpm build              # 构建全部包
-pnpm test               # 运行单元测试（Vitest，251 个用例）
+pnpm test               # 运行单元测试（Vitest，285 个用例）
 pnpm test:watch         # 监听模式运行单元测试
 pnpm test:e2e           # Playwright E2E（首次需 npx playwright install chromium）
 pnpm lint               # ESLint 代码检查
@@ -186,17 +189,20 @@ Design principle: you never hand your school credentials to this app. The extens
 
 ### Features
 
-- 📅 **Weekly timetable**: grid view, auto-jump to the current week, free week switching
+- 📅 **Weekly timetable**: grid view, auto-jump to the current week, free week switching; partially overlapping classes laid out side by side without stacking
 - 🕐 **Today overview**: status card for "in class" / "next class" / "classes finished"
+- 📱 **Mobile-first**: phones default to a vertical "today" timeline with Today / Tomorrow / Week tabs — no horizontal scrolling needed
 - 📖 **Course details**: course info, location, teachers, week arrangement
-- 🗓️ **Semester management**: multiple semesters, configurable first-week start date and total weeks
-- ⚠️ **Conflict detection**: overlapping classes shown side by side with a banner
-- 📥 **JSON import (protocol v1)**: preview before import, abnormal-data-volume guard, diff statistics
+- 🗓️ **Semester management**: multiple semesters, persisted semester switching, calendar editing (start date / total weeks)
+- ⏰ **Period times editor**: per-semester class start/end times, editable after import
+- ⚠️ **Conflict detection**: overlapping classes shown side by side with a banner; no class is ever dropped
+- 📥 **JSON import (protocol v1)**: preview before import, abnormal-data-volume guard, diff statistics, humanized warnings, file size limit
 - 📤 **Multiple exports**: ICS calendar (one event per attended week + VALARM reminder), full data backup JSON, `.campusschedule.json`
-- 💾 **Local persistence**: IndexedDB storage, backup export, one-click data wipe
+- 💾 **Backup restore**: deep validation (version / structure / referential integrity) + transactional restore; corrupted backups never touch local data
+- 🔧 **Persisted settings**: reminder minutes, weekend columns, 24-hour clock, week start — survive reloads
 - 🧩 **Browser extension**: school domain detection, semantic & structural timetable page detection, auto-disable on login pages, sanitized timetable snapshot, debug panel
-- 📲 **PWA**: installable, works offline
-- ✅ **Quality**: 251 unit tests (Vitest) + Playwright E2E tests
+- 📲 **PWA**: installable, works offline; a single build supports both root-path and sub-path (GitHub Pages) deployment
+- ✅ **Quality**: 285 unit tests (Vitest) + Playwright E2E (root & sub-path projects)
 
 ### Screenshots
 
@@ -276,7 +282,7 @@ pnpm build          # Build all packages (packages → apps)
 ```bash
 pnpm install            # Install dependencies
 pnpm build              # Build all packages
-pnpm test               # Run unit tests (Vitest, 251 tests)
+pnpm test               # Run unit tests (Vitest, 285 tests)
 pnpm test:watch         # Run unit tests in watch mode
 pnpm test:e2e           # Playwright E2E (run npx playwright install chromium first if needed)
 pnpm lint               # ESLint

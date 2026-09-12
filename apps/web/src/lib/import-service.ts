@@ -11,6 +11,42 @@ export type ImportParseResult =
   | { ok: true; envelope: ImportEnvelope }
   | { ok: false; error: string };
 
+/** 解析警告 code → 普通学生能看懂的中文说明。 */
+const WARNING_CODE_LABELS: Record<string, string> = {
+  UNKNOWN_WEEK_FORMAT: '上课周次无法识别',
+  UNKNOWN_PERIOD_FORMAT: '节次编号无法识别',
+  MISSING_LOCATION: '缺少上课地点',
+  MISSING_TEACHER: '缺少教师信息',
+  AMBIGUOUS_CELL: '课表单元格内容有歧义',
+  ADAPTER_OUTDATED: '导出扩展版本过旧',
+};
+
+/** 把警告转为面向用户的完整描述（含原文引用）。 */
+export function describeWarning(warning: {
+  code: string;
+  message: string;
+  raw?: string;
+}): string {
+  const label = WARNING_CODE_LABELS[warning.code] ?? '未知解析警告';
+  return label + '：' + warning.message + (warning.raw ? '（原文：' + warning.raw + '）' : '');
+}
+
+/** 导入文件大小上限（字节）：5MB。 */
+export const IMPORT_FILE_MAX_BYTES = 5 * 1024 * 1024;
+
+/** 校验导入文件大小，超限返回人话错误。 */
+export function checkImportFileSize(sizeBytes: number): string | null {
+  if (sizeBytes > IMPORT_FILE_MAX_BYTES) {
+    return (
+      '文件过大（' +
+      (sizeBytes / 1024 / 1024).toFixed(1) +
+      ' MB），超过 5 MB 上限。' +
+      '请确认选择的是扩展导出的 .campusschedule.json 课表文件。'
+    );
+  }
+  return null;
+}
+
 /** 解析 .campusschedule.json 文件文本：JSON 语法错误与数据校验失败都必须显式报错。 */
 export function parseImportFileContent(text: string): ImportParseResult {
   let json: unknown;

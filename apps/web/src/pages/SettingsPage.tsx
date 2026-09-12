@@ -262,7 +262,7 @@ export function SettingsPage() {
         <div className="settings-row">
           <div>
             上课前提醒
-            <span className="hint">用于 ICS 日历提醒与站内提醒（开发中）</span>
+            <span className="hint">用于 ICS 日历提醒（站内提醒尚未上线）</span>
           </div>
           <input
             type="number"
@@ -274,33 +274,35 @@ export function SettingsPage() {
             aria-label="提醒分钟数"
           />
         </div>
-        <div className="settings-row">
+        <label className="settings-row">
           <div>显示周末</div>
           <input
             type="checkbox"
             checked={settings.showWeekend}
             onChange={(e) => updateSettings({ showWeekend: e.target.checked })}
           />
-        </div>
-        <div className="settings-row">
+        </label>
+        <label className="settings-row">
           <div>24 小时制</div>
           <input
             type="checkbox"
             checked={settings.use24Hour}
             onChange={(e) => updateSettings({ use24Hour: e.target.checked })}
           />
-        </div>
+        </label>
         <div className="settings-row">
           <div>每周起始日</div>
           <select
             value={settings.weekStart}
             onChange={(e) => updateSettings({ weekStart: Number(e.target.value) as 1 | 7 })}
+            aria-label="每周起始日"
           >
             <option value={1}>周一</option>
             <option value={7}>周日</option>
           </select>
         </div>
       </div>
+
 
       <div className="card">
         <h2>作息时间（当前学期）</h2>

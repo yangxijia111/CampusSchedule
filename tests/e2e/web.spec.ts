@@ -66,7 +66,8 @@ test.describe('CampusSchedule Web', () => {
     await page.getByRole('button', { name: '确认导入' }).click();
     await expect(page.getByText('导入成功')).toBeVisible({ timeout: 10_000 });
 
-    // 自动跳转回课表，进入新学期（多学期时以切换器取值断言）
+    // 点击"查看课表"进入新课表（不依赖自动跳转）
+    await page.getByRole('button', { name: '查看课表' }).click();
     await expect(page.getByText('E2E高等数学').first()).toBeVisible({ timeout: 5_000 });
     await expect(page.getByLabel('切换学期')).toHaveValue('e2e-2026-2027-1');
 
@@ -88,6 +89,25 @@ test.describe('CampusSchedule Web', () => {
     });
     await expect(page.getByText('导入失败')).toBeVisible();
     await expect(page.getByText(/校验失败/)).toBeVisible();
+  });
+
+  test('超限文件被拒绝，随后可重新选择正确文件', async ({ page }) => {
+    await page.goto('./import');
+    await page.setInputFiles('input[type="file"]', {
+      name: 'big.json',
+      mimeType: 'application/json',
+      buffer: Buffer.alloc(6 * 1024 * 1024, 'a'),
+    });
+    await expect(page.getByRole('alert')).toContainText('文件过大');
+
+    // 错误可恢复：重新选择合法文件进入预览
+    await page.setInputFiles(
+      'input[type="file"]',
+      'tests/e2e/fixtures/e2e-sample.campusschedule.json',
+    );
+    await expect(page.getByText('导入预览')).toBeVisible();
+    // 警告已人话化（不再直接展示 code）
+    await expect(page.getByText(/缺少教师信息：/)).toBeVisible();
   });
 
   test('清空全部数据后刷新，保持空状态（不自动恢复示例）', async ({ page }) => {
