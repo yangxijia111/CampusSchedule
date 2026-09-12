@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { exportBackup } from '@campusschedule/storage';
+import { exportBackup, validateBackup } from '@campusschedule/storage';
+import type { BackupSummary } from '@campusschedule/storage';
 import type { PeriodDefinition } from '@campusschedule/core';
 import { useAppStore } from '../store/use-app-store';
 import { useActivePeriodTimes, useActiveSemester } from '../store/use-app-store';
@@ -109,6 +110,111 @@ function PeriodTimesEditor() {
       </div>
       {error && <p style={{ color: 'var(--danger)', marginTop: 8 }}>{error}</p>}
       {savedMessage && <p className="note">{savedMessage}</p>}
+    </div>
+  );
+}
+
+/**
+ * 从备份恢复：先深度校验并展示摘要，用户二次确认后事务式恢复。
+ * 校验失败不触碰本地数据；恢复中禁止重复操作。
+ */
+function RestoreBackupSection() {
+  const restoreBackup = useAppStore((s) => s.restoreBackup);
+  const [pending, setPending] = useState<BackupSummary | null>(null);
+  const [error, setError] = useState('');
+  const [restoring, setRestoring] = useState(false);
+  const [doneSummary, setDoneSummary] = useState<BackupSummary | null>(null);
+  const [parsedBackup, setParsedBackup] = useState<unknown>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleFile(file: File): Promise<void> {
+    setError('');
+    setPending(null);
+    setDoneSummary(null);
+    let json: unknown;
+    try {
+      json = JSON.parse(await file.text());
+    } catch {
+      setError('备份文件不是合法的 JSON，无法恢复。');
+      return;
+    }
+    const result = validateBackup(json);
+    if (!result.ok) {
+      setError('备份校验失败：' + result.error);
+      return;
+    }
+    setParsedBackup(json);
+    setPending(result.summary);
+  }
+
+  async function handleRestore(): Promise<void> {
+    if (pending === null) return;
+    setRestoring(true);
+    setError('');
+    try {
+      const summary = await restoreBackup(parsedBackup);
+      setDoneSummary(summary);
+      setPending(null);
+    } catch (cause) {
+      setError('恢复失败：' + (cause instanceof Error ? cause.message : String(cause)));
+    } finally {
+      setRestoring(false);
+    }
+  }
+
+  return (
+    <div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json,application/json"
+        aria-label="选择备份文件"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) {
+            void handleFile(file);
+          }
+        }}
+      />
+      {pending && (
+        <div className="card" style={{ borderColor: 'var(--warning)', background: '#fffbeb', marginTop: 12, marginBottom: 0 }}>
+          <strong>确认恢复这份备份？</strong>
+          <p className="muted" style={{ margin: '6px 0' }}>
+            包含 {pending.semesterCount} 个学期 · {pending.courseCount} 门课程 · {pending.sessionCount} 个上课时段
+            {pending.exportedAt ? '（导出于 ' + new Date(pending.exportedAt).toLocaleString('zh-CN') + '）' : ''}
+          </p>
+          <p className="muted" style={{ margin: '0 0 8px' }}>
+            恢复会<strong>覆盖当前全部本地数据</strong>，建议先导出一份当前数据备份。
+          </p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn danger" disabled={restoring} onClick={() => void handleRestore()}>
+              {restoring ? '恢复中…' : '确认恢复'}
+            </button>
+            <button
+              className="btn"
+              disabled={restoring}
+              onClick={() => {
+                setPending(null);
+                if (fileInputRef.current) {
+                  fileInputRef.current.value = '';
+                }
+              }}
+            >
+              取消
+            </button>
+          </div>
+        </div>
+      )}
+      {doneSummary && (
+        <p className="note" role="status">
+          ✅ 已恢复 {doneSummary.semesterCount} 个学期、{doneSummary.courseCount} 门课程。
+        </p>
+      )}
+      {error && (
+        <p style={{ color: 'var(--danger)', marginTop: 8 }} role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
@@ -237,6 +343,13 @@ export function SettingsPage() {
           )}
         </div>
         {statusMessage && <p className="note">{statusMessage}</p>}
+        <div className="settings-row" style={{ marginTop: 12 }}>
+          <div>
+            从备份恢复
+            <span className="hint">选择此前导出的备份 JSON，校验通过后整体恢复</span>
+          </div>
+        </div>
+        <RestoreBackupSection />
       </div>
 
       <div className="card">

@@ -31,6 +31,9 @@ export function EmptyState() {
         <Link className="btn primary" to="/import">
           导入学校课表
         </Link>
+        <Link className="btn" to="/settings">
+          从备份恢复
+        </Link>
         <button
           className="btn"
           onClick={() => void handleLoadDemo()}
