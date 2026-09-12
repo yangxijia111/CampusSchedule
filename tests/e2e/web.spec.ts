@@ -8,7 +8,7 @@ import { loadDemoIfEmpty } from './helpers';
 
 test.describe('CampusSchedule Web', () => {
   test('首次进入显示空状态，点击体验示例后加载课表', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('./');
     await expect(page).toHaveTitle(/CampusSchedule/);
     // 空状态：不自动写入示例数据
     await expect(page.getByRole('heading', { name: '还没有课表' })).toBeVisible();
@@ -24,7 +24,7 @@ test.describe('CampusSchedule Web', () => {
   });
 
   test('切换教学周', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('./');
     await loadDemoIfEmpty(page);
     const weekLabel = page.locator('.week-label');
     const initial = await weekLabel.textContent();
@@ -37,7 +37,7 @@ test.describe('CampusSchedule Web', () => {
   });
 
   test('打开课程详情并返回', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('./');
     await loadDemoIfEmpty(page);
     await page.getByText('高等数学').first().click();
     await expect(page.getByText('上课时间', { exact: false })).toBeVisible();
@@ -47,10 +47,10 @@ test.describe('CampusSchedule Web', () => {
   });
 
   test('导入 Fixture JSON：预览 → 确认 → 进入新课表 → 刷新持久且无示例提示', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('./');
     await loadDemoIfEmpty(page);
 
-    await page.goto('/import');
+    await page.goto('./import');
     await page.setInputFiles(
       'input[type="file"]',
       'tests/e2e/fixtures/e2e-sample.campusschedule.json',
@@ -80,7 +80,7 @@ test.describe('CampusSchedule Web', () => {
   });
 
   test('非法文件被拒绝且给出原因', async ({ page }) => {
-    await page.goto('/import');
+    await page.goto('./import');
     await page.setInputFiles('input[type="file"]', {
       name: 'bad.json',
       mimeType: 'application/json',
@@ -91,10 +91,10 @@ test.describe('CampusSchedule Web', () => {
   });
 
   test('清空全部数据后刷新，保持空状态（不自动恢复示例）', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('./');
     await loadDemoIfEmpty(page);
 
-    await page.goto('/settings');
+    await page.goto('./settings');
     await page.getByRole('button', { name: '清除' }).click();
     await page.getByRole('button', { name: '确认清空' }).click();
 
@@ -112,10 +112,10 @@ test.describe('CampusSchedule Web', () => {
   });
 
   test('学期管理页显示学期列表', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('./');
     await loadDemoIfEmpty(page);
 
-    await page.goto('/semester');
+    await page.goto('./semester');
     await expect(page.getByText('学期管理')).toBeVisible();
     await expect(page.getByText(/示例|E2E 测试学期/).first()).toBeVisible();
   });

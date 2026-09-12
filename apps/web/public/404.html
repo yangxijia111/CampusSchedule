@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>CampusSchedule</title>
+    <!-- GitHub Pages 等静态主机不支持 SPA 深链接（/repo/course/x 直接 404）。
+         本页作为 404 回退：探测应用根（子路径或根路径），携带 ?p=/原始路径
+         重定向回应用；应用入口（main.tsx）会把 ?p= 还原成路由地址。 -->
+    <script>
+      (function () {
+        var path = window.location.pathname;
+        var segments = path.split('/').filter(Boolean);
+        // 候选应用根：首段（项目页部署）与根（自定义域名部署）
+        var candidates = segments.length > 0 ? ['/' + segments[0] + '/', '/'] : ['/'];
+        var index = 0;
+
+        function redirect(root) {
+          var inner = path.slice(root.length - 1) || '/';
+          window.location.replace(root + '?p=' + encodeURIComponent(inner));
+        }
+
+        function tryNext() {
+          if (index >= candidates.length) {
+            // 探测失败：回到站点根
+            window.location.replace('/');
+            return;
+          }
+          var root = candidates[index];
+          index += 1;
+          fetch(root + 'manifest.webmanifest', { method: 'HEAD' })
+            .then(function (response) {
+              if (response.ok) {
+                redirect(root);
+              } else {
+                tryNext();
+              }
+            })
+            .catch(tryNext);
+        }
+
+        tryNext();
+      })();
+    </script>
+  </head>
+  <body>
+    <p>正在返回 CampusSchedule…</p>
+  </body>
+</html>
