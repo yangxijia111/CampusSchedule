@@ -2,7 +2,47 @@ import { describe, expect, it } from 'vitest';
 import type { Course } from '@campusschedule/core';
 import type { ImportEnvelope } from '@campusschedule/importer-protocol';
 import { buildImportEnvelope } from '@campusschedule/importer-protocol';
-import { buildImportPreview, parseImportFileContent } from './import-service';
+import {
+  buildImportPreview,
+  checkImportFileSize,
+  describeWarning,
+  IMPORT_FILE_MAX_BYTES,
+  parseImportFileContent,
+} from './import-service';
+
+describe('describeWarning', () => {
+  it('已知 code 映射为中文说明并拼接 message', () => {
+    expect(describeWarning({ code: 'MISSING_TEACHER', message: '课程 X 无教师' })).toBe(
+      '缺少教师信息：课程 X 无教师',
+    );
+    expect(describeWarning({ code: 'UNKNOWN_WEEK_FORMAT', message: '周次文本无法解析' })).toBe(
+      '上课周次无法识别：周次文本无法解析',
+    );
+  });
+
+  it('带原文时附加 raw 引用', () => {
+    expect(
+      describeWarning({ code: 'AMBIGUOUS_CELL', message: '单元格含多门课', raw: '高数;英语' }),
+    ).toBe('课表单元格内容有歧义：单元格含多门课（原文：高数;英语）');
+  });
+
+  it('未知 code 回落到通用说明', () => {
+    expect(describeWarning({ code: 'SOMETHING_NEW', message: 'x' })).toBe('未知解析警告：x');
+  });
+});
+
+describe('checkImportFileSize', () => {
+  it('正常大小通过（返回 null）', () => {
+    expect(checkImportFileSize(1024)).toBeNull();
+    expect(checkImportFileSize(IMPORT_FILE_MAX_BYTES)).toBeNull();
+  });
+
+  it('超限返回包含大小与上限的人话错误', () => {
+    const error = checkImportFileSize(IMPORT_FILE_MAX_BYTES + 1);
+    expect(error).toContain('文件过大');
+    expect(error).toContain('5 MB');
+  });
+});
 
 function sampleEnvelopeFileContent(warningCount = 0, courseCount = 3): string {
   const courses = Array.from({ length: courseCount }, (_, i) => ({

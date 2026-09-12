@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/use-app-store';
 import {
   buildImportPreview,
+  checkImportFileSize,
+  describeWarning,
   parseImportFileContent,
 } from '../lib/import-service';
 import type { ImportEnvelope, ImportPreview } from '../lib/import-service';
@@ -26,24 +28,38 @@ export function ImportPage() {
 
   async function handleFile(file: File): Promise<void> {
     setAcknowledgeAnomaly(false);
-    const text = await file.text();
-    const parsed = parseImportFileContent(text);
-    if (!parsed.ok) {
-      setState({ stage: 'error', message: parsed.error });
-      return;
+    setState({ stage: 'idle' });
+    try {
+      const sizeError = checkImportFileSize(file.size);
+      if (sizeError) {
+        setState({ stage: 'error', message: sizeError });
+        return;
+      }
+      // file.text() 可能因文件被移动/权限问题失败
+      const text = await file.text();
+      const parsed = parseImportFileContent(text);
+      if (!parsed.ok) {
+        setState({ stage: 'error', message: parsed.error });
+        return;
+      }
+      setState({
+        stage: 'preview',
+        envelope: parsed.envelope,
+        preview: buildImportPreview(
+          parsed.envelope,
+          coursesBySemester[parsed.envelope.semester.id] ?? [],
+        ),
+      });
+    } catch (cause) {
+      setState({
+        stage: 'error',
+        message: '读取文件失败：' + (cause instanceof Error ? cause.message : String(cause)),
+      });
     }
-    setState({
-      stage: 'preview',
-      envelope: parsed.envelope,
-      preview: buildImportPreview(
-        parsed.envelope,
-        coursesBySemester[parsed.envelope.semester.id] ?? [],
-      ),
-    });
   }
 
   async function confirmImport(): Promise<void> {
-    if (state.stage !== 'preview') return;
+    if (state.stage !== 'preview' || saving) return;
     setSaving(true);
     try {
       const { envelope } = state;
@@ -60,10 +76,21 @@ export function ImportPage() {
         warningCount: envelope.warnings.length,
         isMock: false,
       });
-      setState({ stage: 'done', message: '导入成功！已进入新学期课表。' });
-      setTimeout(() => navigate('/'), 900);
+      setState({ stage: 'done', message: '导入成功！' });
+    } catch (cause) {
+      // 写入失败保留预览，用户可重试或换文件
+      setState({
+        stage: 'error',
+        message:
+          '导入保存失败：' + (cause instanceof Error ? cause.message : String(cause)) +
+          '。本地数据未被修改，可重试或重新选择文件。',
+      });
     } finally {
       setSaving(false);
+      if (fileInputRef.current) {
+        // 允许再次选择同一文件触发 onChange
+        fileInputRef.current.value = '';
+      }
     }
   }
 
@@ -83,20 +110,26 @@ export function ImportPage() {
           ref={fileInputRef}
           type="file"
           accept=".json,application/json,.campusschedule.json"
+          aria-label="选择课表文件"
+          disabled={saving}
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (file) {
               void handleFile(file);
             }
+            // 允许再次选择同一文件触发 onChange
+            e.target.value = '';
           }}
         />
       </div>
 
       {state.stage === 'error' && (
-        <div className="card" style={{ borderColor: 'var(--danger)' }}>
+        <div className="card" style={{ borderColor: 'var(--danger)' }} role="alert">
           <h2>导入失败</h2>
           <p style={{ color: 'var(--danger)' }}>{state.message}</p>
-          <p className="note">请确认选择的是扩展导出的 .campusschedule.json 文件。</p>
+          <p className="note">
+            请确认选择的是扩展导出的 .campusschedule.json 文件；上方可重新选择文件再试。
+          </p>
         </div>
       )}
 
@@ -167,14 +200,19 @@ export function ImportPage() {
           {state.preview.warningCount > 0 && (
             <div style={{ marginTop: 12 }}>
               <h2 style={{ fontSize: 14 }}>解析警告（{state.preview.warningCount} 条）</h2>
+              <p className="hint" style={{ marginTop: 0 }}>
+                这些课程已保留，但部分信息可能不完整，建议核对。
+              </p>
               <ul>
                 {state.preview.warnings.slice(0, 10).map((warning, index) => (
                   <li key={index} style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                    [{warning.code}] {warning.message}
-                    {warning.raw ? `（原文：${warning.raw}）` : ''}
+                    {describeWarning(warning)}
                   </li>
                 ))}
               </ul>
+              {state.preview.warningCount > 10 && (
+                <p className="hint">还有 {state.preview.warningCount - 10} 条警告未展示。</p>
+              )}
             </div>
           )}
 
@@ -207,8 +245,11 @@ export function ImportPage() {
       )}
 
       {state.stage === 'done' && (
-        <div className="card" style={{ borderColor: 'var(--success)' }}>
+        <div className="card" style={{ borderColor: 'var(--success)' }} role="status">
           <h2 style={{ color: 'var(--success)' }}>✅ {state.message}</h2>
+          <button className="btn primary" onClick={() => navigate('/')}>
+            查看课表
+          </button>
         </div>
       )}
 

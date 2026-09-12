@@ -13,6 +13,7 @@ test.describe('冲突课程布局', () => {
       'tests/e2e/fixtures/e2e-overlap.campusschedule.json',
     );
     await page.getByRole('button', { name: '确认导入' }).click();
+    await page.getByRole('button', { name: '查看课表' }).click();
     await expect(page.getByText('重叠课A').first()).toBeVisible({ timeout: 10_000 });
 
     const blocks = page.getByTestId('course-block');

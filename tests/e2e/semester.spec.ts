@@ -18,6 +18,7 @@ test.describe('学期切换与编辑', () => {
       'tests/e2e/fixtures/e2e-sample.campusschedule.json',
     );
     await page.getByRole('button', { name: '确认导入' }).click();
+    await page.getByRole('button', { name: '查看课表' }).click();
 
     // 首页出现学期切换下拉，当前值为新导入学期（option 元素不可见，用取值断言）
     const switcher = page.getByLabel('切换学期');
