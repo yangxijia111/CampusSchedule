@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { Weekday } from '@campusschedule/core';
 import {
   buildIcsCalendar,
@@ -5,6 +6,7 @@ import {
   icsFileName,
   sessionsForWeek,
 } from '@campusschedule/core';
+import { DailyTimetable } from '../components/DailyTimetable';
 import { EmptyState } from '../components/EmptyState';
 import { NextClassCard } from '../components/NextClassCard';
 import { TimetableGrid } from '../components/TimetableGrid';
@@ -21,7 +23,11 @@ import {
 } from '../store/use-app-store';
 import { todayIsoDate } from '../lib/ui-utils';
 
+/** 移动端视图：今日 / 明日纵向时间轴为主，完整周表按需查看。 */
+type MobileTab = 'today' | 'tomorrow' | 'week';
+
 export function TodayPage() {
+  const [mobileTab, setMobileTab] = useState<MobileTab>('today');
   const semester = useActiveSemester();
   const courses = useActiveCourses();
   const periodTimes = useActivePeriodTimes();
@@ -84,7 +90,9 @@ export function TodayPage() {
           </select>
         )}
         <span className="muted">
-          {semesters.length > 1 ? '第 ' + displayWeek + ' 周' : semester.displayName + ' · 第 ' + displayWeek + ' 周'}
+          {semesters.length > 1
+            ? '第 ' + displayWeek + ' 周'
+            : semester.displayName + ' · 第 ' + displayWeek + ' 周'}
           {currentWeek > 0 ? ' / 共 ' + totalWeeks + ' 周' : ''}
         </span>
         <button className="btn" onClick={exportIcs} style={{ marginLeft: 'auto' }}>
@@ -93,55 +101,83 @@ export function TodayPage() {
       </div>
 
       <NextClassCard />
-      <WeekSwitcher />
 
-      {conflicts.length > 0 && (
-        <div className="card" style={{ borderColor: 'var(--warning)', background: '#fffbeb' }}>
-          <strong style={{ color: 'var(--warning)' }}>
-            ⚠ 第 {displayWeek} 周有 {conflicts.length} 处时间冲突
-          </strong>
-          <p className="muted" style={{ margin: '6px 0 0' }}>
-            {conflicts
-              .slice(0, 3)
-              .map(
-                (group) =>
-                  group.slots.map((s) => s.course.name).join(' 与 ') +
-                  '（星期' +
-                  group.weekday +
-                  ' 第' +
-                  group.startPeriod +
-                  '-' +
-                  group.endPeriod +
-                  '节）',
-              )
-              .join('；')}
-            {conflicts.length > 3 ? ' 等' : ''}
-            。两个课程均已保留，请自行核对。
-          </p>
+      {/* 移动端视图切换（桌面隐藏）：今天 | 明天 | 本周 */}
+      <div className="mobile-tabs" role="tablist" aria-label="课表视图">
+        {(
+          [
+            { key: 'today', label: '今天' },
+            { key: 'tomorrow', label: '明天' },
+            { key: 'week', label: '本周' },
+          ] as const
+        ).map((tab) => (
+          <button
+            key={tab.key}
+            role="tab"
+            aria-selected={mobileTab === tab.key}
+            className={'mobile-tab' + (mobileTab === tab.key ? ' active' : '')}
+            onClick={() => setMobileTab(tab.key)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* 移动端当日纵向时间轴 */}
+      {mobileTab !== 'week' && (
+        <div className="daily-view">
+          <DailyTimetable target={mobileTab} />
         </div>
       )}
 
-      {slots.length === 0 ? (
-        <div className="card empty-state">
-          <p>第 {displayWeek} 周没有课程。</p>
-        </div>
-      ) : (
-        <TimetableGrid
-          semester={semester}
-          slots={slots}
-          periodTimes={periodTimes}
-          weekdays={weekdays}
-          week={displayWeek}
-          highlightToday={displayWeek === currentWeek}
-          use24Hour={settings.use24Hour}
-        />
-      )}
+      {/* 完整周视图：桌面始终可见；移动端切到"本周"时可见 */}
+      <div className={'week-view' + (mobileTab === 'week' ? ' mobile-show-week' : '')}>
+        <WeekSwitcher />
 
-      {isMock && (
-        <p className="note">
-          当前为示例课表数据。导入真实课表后此处将显示你的个人课表。
-        </p>
-      )}
+        {conflicts.length > 0 && (
+          <div className="card" style={{ borderColor: 'var(--warning)', background: '#fffbeb' }}>
+            <strong style={{ color: 'var(--warning)' }}>
+              ⚠ 第 {displayWeek} 周有 {conflicts.length} 处时间冲突
+            </strong>
+            <p className="muted" style={{ margin: '6px 0 0' }}>
+              {conflicts
+                .slice(0, 3)
+                .map(
+                  (group) =>
+                    group.slots.map((s) => s.course.name).join(' 与 ') +
+                    '（星期' +
+                    group.weekday +
+                    ' 第' +
+                    group.startPeriod +
+                    '-' +
+                    group.endPeriod +
+                    '节）',
+                )
+                .join('；')}
+              {conflicts.length > 3 ? ' 等' : ''}
+              。两个课程均已保留，请自行核对。
+            </p>
+          </div>
+        )}
+
+        {slots.length === 0 ? (
+          <div className="card empty-state">
+            <p>第 {displayWeek} 周没有课程。</p>
+          </div>
+        ) : (
+          <TimetableGrid
+            semester={semester}
+            slots={slots}
+            periodTimes={periodTimes}
+            weekdays={weekdays}
+            week={displayWeek}
+            highlightToday={displayWeek === currentWeek}
+            use24Hour={settings.use24Hour}
+          />
+        )}
+      </div>
+
+      {isMock && <p className="note">当前为示例课表数据。导入真实课表后此处将显示你的个人课表。</p>}
     </div>
   );
 }
