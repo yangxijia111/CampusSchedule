@@ -1,0 +1,27 @@
+{
+  "name": "@campusschedule/storage",
+  "version": "0.1.0",
+  "description": "本地持久化（IndexedDB / Dexie）",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@campusschedule/core": "workspace:*",
+    "dexie": "^4.4.5"
+  },
+  "devDependencies": {
+    "fake-indexeddb": "^6.2.5"
+  }
+}

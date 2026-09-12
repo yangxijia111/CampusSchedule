@@ -1,0 +1,60 @@
+{
+  "protocolVersion": 1,
+  "source": {
+    "schoolId": "e2e-school",
+    "adapterVersion": "0.1.0",
+    "pageUrl": "https://jw.e2e-school.example/timetable",
+    "importedAt": "2026-09-09T10:00:00.000Z"
+  },
+  "semester": {
+    "id": "e2e-2026-2027-1",
+    "schoolId": "e2e-school",
+    "academicYear": "2026-2027",
+    "term": 1,
+    "displayName": "E2E 测试学期",
+    "startDate": "2026-09-07",
+    "totalWeeks": 16
+  },
+  "courses": [
+    {
+      "id": "e2e-course-1",
+      "semesterId": "e2e-2026-2027-1",
+      "name": "E2E高等数学",
+      "courseCode": "E2E101",
+      "teacherNames": ["测试教师"],
+      "credit": 4,
+      "category": "必修",
+      "sessions": [
+        {
+          "id": "e2e-course-1-s1",
+          "courseId": "e2e-course-1",
+          "weekday": 1,
+          "startPeriod": 1,
+          "endPeriod": 2,
+          "weeks": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+          "location": "E2E-A101"
+        }
+      ]
+    },
+    {
+      "id": "e2e-course-2",
+      "semesterId": "e2e-2026-2027-1",
+      "name": "E2E体育",
+      "teacherNames": ["体育教师"],
+      "sessions": [
+        {
+          "id": "e2e-course-2-s1",
+          "courseId": "e2e-course-2",
+          "weekday": 5,
+          "startPeriod": 6,
+          "endPeriod": 7,
+          "weeks": [2, 4, 6, 8, 10, 12, 14, 16],
+          "location": "E2E-操场"
+        }
+      ]
+    }
+  ],
+  "warnings": [
+    { "code": "MISSING_TEACHER", "message": "E2E：一门课程缺少教师（构造数据）" }
+  ]
+}

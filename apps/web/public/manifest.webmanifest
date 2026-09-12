@@ -1,0 +1,26 @@
+{
+  "name": "CampusSchedule 校园课表助手",
+  "short_name": "CampusSchedule",
+  "description": "面向高校学生的学期课程表应用：周课表、当前周、课程提醒、ICS 导出。数据仅保存在本地。",
+  "lang": "zh-CN",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f5f6fa",
+  "theme_color": "#4f46e5",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
