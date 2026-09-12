@@ -7,7 +7,7 @@ import { expect, test } from '@playwright/test';
 
 test.describe('冲突课程布局', () => {
   test('部分重叠课程错列显示，包围盒互不相交', async ({ page }) => {
-    await page.goto('/import');
+    await page.goto('./import');
     await page.setInputFiles(
       'input[type="file"]',
       'tests/e2e/fixtures/e2e-overlap.campusschedule.json',

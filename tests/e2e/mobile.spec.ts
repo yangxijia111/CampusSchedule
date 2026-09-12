@@ -10,7 +10,7 @@ test.use({ viewport: { width: 375, height: 667 } });
 
 test.describe('移动端课表', () => {
   test('默认显示今日时间轴，主要内容无横向滚动', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('./');
     await loadDemoIfEmpty(page);
 
     // 今日 / 明天 / 本周 三个页签可见，默认"今天"激活
@@ -30,7 +30,7 @@ test.describe('移动端课表', () => {
   });
 
   test('切换明天与本周，课程可点击进入详情', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('./');
     await loadDemoIfEmpty(page);
 
     // 明天
@@ -53,7 +53,7 @@ test.describe('移动端课表', () => {
   });
 
   test('周切换在移动端仍可用', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('./');
     await loadDemoIfEmpty(page);
 
     await page.getByRole('tab', { name: '本周' }).click();
