@@ -1,4 +1,4 @@
-import type { Course, Semester } from '@campusschedule/core';
+import type { Course, CourseSession, Semester } from '@campusschedule/core';
 import { courseSchema, semesterSchema } from '@campusschedule/core';
 import type { CourseRow, ImportRecord, SchoolRecord, SettingRow } from './db';
 import type { TimetableRepository } from './repository';
@@ -233,7 +233,7 @@ export async function importBackup(
   const { data } = validation.backup;
 
   const courseRows: CourseRow[] = [];
-  const sessionRows = [];
+  const sessionRows: CourseSession[] = [];
   for (const [semesterId, courses] of Object.entries(data.coursesBySemester)) {
     for (const course of courses) {
       const { sessions, ...rest } = course;

@@ -2,6 +2,7 @@ import type { CourseSlot, PeriodDefinition, Semester, Weekday } from '@campussch
 import { dateOfWeek, findPeriodDefinition, weekdayName } from '@campusschedule/core';
 import { Link } from 'react-router-dom';
 import { courseColorIndex, formatTime, nowMinutes, slotTooltip, timeToMinutes, todayIsoDate, todayWeekday } from '../lib/ui-utils';
+import { layoutSlots } from '../lib/slot-layout';
 
 interface TimetableGridProps {
   semester: Semester;
@@ -15,21 +16,11 @@ interface TimetableGridProps {
   use24Hour: boolean;
 }
 
-/** 同一 (星期, 节次区间) 的多个 Session 并排渲染，冲突不丢弃。 */
-function groupSlots(slots: CourseSlot[]): Map<string, CourseSlot[]> {
-  const groups = new Map<string, CourseSlot[]>();
-  for (const slot of slots) {
-    const key = slot.session.weekday + ':' + slot.session.startPeriod + '-' + slot.session.endPeriod;
-    const list = groups.get(key);
-    if (list) {
-      list.push(slot);
-    } else {
-      groups.set(key, [slot]);
-    }
-  }
-  return groups;
-}
-
+/**
+ * 周课表网格：外层 CSS grid 定位表头 / 节次列 / 星期列；
+ * 每个星期列内部用 interval layout（lib/slot-layout）做并发列分配，
+ * 课程块按百分比绝对定位 —— 完全重叠并排、部分重叠错列，不丢弃任何课程。
+ */
 export function TimetableGrid({
   semester,
   slots,
@@ -46,10 +37,14 @@ export function TimetableGrid({
   const gridStyle = {
     display: 'grid',
     gridTemplateColumns: `56px repeat(${weekdays.length}, minmax(96px, 1fr))`,
-    gridTemplateRows: `40px repeat(${rows}, minmax(56px, auto))`,
+    // 等高行（1fr）：星期列内课程块按百分比定位才能与节次网格线对齐
+    gridTemplateRows: `40px repeat(${rows}, minmax(56px, 1fr))`,
   };
 
-  const groups = groupSlots(slots);
+  // interval layout：按星期分组并分配并发列
+  const layouts = layoutSlots(slots);
+  const layoutByWeekday = new Map(layouts.map((layout) => [layout.weekday, layout]));
+
   const today = todayIsoDate();
   const minutes = nowMinutes();
 
@@ -91,60 +86,79 @@ export function TimetableGrid({
           );
         })}
 
-        {/* 课程块 */}
-        {[...groups.entries()].map(([key, group]) => {
-          const [weekdayText, rangeText] = key.split(':');
-          const [startText, endText] = rangeText!.split('-');
-          const weekday = Number(weekdayText) as Weekday;
-          const startPeriod = Number(startText);
-          const endPeriod = Number(endText);
-          const columnIndex = weekdays.indexOf(weekday);
-          if (columnIndex < 0) return null;
-
-          const startDef = findPeriodDefinition(periodTimes, startPeriod);
-          const endDef = findPeriodDefinition(periodTimes, endPeriod);
+        {/* 课程块：每个星期一个占满全部节次行的容器，内部按布局绝对定位 */}
+        {weekdays.map((weekday, columnIndex) => {
+          const layout = layoutByWeekday.get(weekday);
           const isToday = highlightToday && weekday === todayWeek;
-          const isPast =
-            isToday && endDef !== null && timeToMinutes(endDef.endTime) <= minutes;
-
+          if (!layout) {
+            return (
+              <div
+                key={'day-' + weekday}
+                className={'tt-day' + (isToday ? ' today-col' : '')}
+                style={{
+                  gridColumn: columnIndex + 2,
+                  gridRow: '2 / ' + (rows + 2),
+                  ['--tt-rows' as string]: String(rows),
+                }}
+              />
+            );
+          }
           return (
             <div
-              key={key}
-              className="tt-cell"
+              key={'day-' + weekday}
+              className={'tt-day' + (isToday ? ' today-col' : '')}
               style={{
                 gridColumn: columnIndex + 2,
-                gridRow: startPeriod + 1 + ' / ' + (endPeriod + 2),
-                borderTop: startPeriod === 1 ? 'none' : undefined,
+                gridRow: '2 / ' + (rows + 2),
+                // CSS 变量：背景横向节次网格线的行高
+                ['--tt-rows' as string]: String(rows),
               }}
             >
-              <div className="course-stack">
-                {group.map((slot) => (
+              {layout.entries.map(({ slot, columnIndex: col, columnCount }) => {
+                const { session } = slot;
+                const startDef = findPeriodDefinition(periodTimes, session.startPeriod);
+                const endDef = findPeriodDefinition(periodTimes, session.endPeriod);
+                const isPast =
+                  isToday && endDef !== null && timeToMinutes(endDef.endTime) <= minutes;
+                // 百分比几何：纵向按节次；横向在并发组内按列均分
+                // （组与组垂直不重叠，各自从 0% 起横向划分，完全重叠并排、部分重叠错列）
+                const top = ((session.startPeriod - 1) / rows) * 100;
+                const height = ((session.endPeriod - session.startPeriod + 1) / rows) * 100;
+                const left = (col / columnCount) * 100;
+                const width = 100 / columnCount;
+                return (
                   <Link
-                    key={slot.session.id}
+                    key={session.id}
                     to={'/course/' + slot.course.id}
+                    data-testid="course-block"
                     className={
                       'course-block cb-' +
                       courseColorIndex(slot.course.id) +
-                      (group.length > 1 ? ' conflict' : '') +
+                      (columnCount > 1 ? ' conflict' : '') +
                       (isPast ? ' past' : '')
                     }
+                    style={{
+                      position: 'absolute',
+                      top: top + '%',
+                      height: 'calc(' + height + '% - 4px)',
+                      left: left + '%',
+                      width: 'calc(' + width + '% - 4px)',
+                    }}
                     title={slotTooltip(slot)}
                   >
                     <span className="name">
                       {slot.course.name}
-                      {group.length > 1 ? ' ⚠' : ''}
+                      {columnCount > 1 ? ' ⚠' : ''}
                     </span>
-                    {slot.session.location && (
-                      <span className="meta">{slot.session.location}</span>
-                    )}
+                    {session.location && <span className="meta">{session.location}</span>}
                     {startDef && endDef && (
                       <span className="meta">
                         {formatTime(startDef.startTime, use24Hour)}-{formatTime(endDef.endTime, use24Hour)}
                       </span>
                     )}
                   </Link>
-                ))}
-              </div>
+                );
+              })}
             </div>
           );
         })}
