@@ -3,17 +3,8 @@ import type { Course, PeriodDefinition, Semester } from '@campusschedule/core';
 import { totalWeeksOf, weekOfDate } from '@campusschedule/core';
 import { mockCourses, mockPeriodTimes, mockSemester, MOCK_SCHOOL_ID } from '../mock/mock-timetable';
 import { getRepository, periodTimesKey } from '../lib/storage';
-
-export interface AppSettings {
-  /** 上课前提醒分钟数。 */
-  reminderMinutes: number;
-  /** 是否显示周末列。 */
-  showWeekend: boolean;
-  /** 24 小时制。 */
-  use24Hour: boolean;
-  /** 每周起始日：1 周一 / 7 周日。 */
-  weekStart: 1 | 7;
-}
+import { DEFAULT_SETTINGS, SETTINGS_KEY, mergeSettings } from '../lib/settings';
+import type { AppSettings } from '../lib/settings';
 
 interface AppState {
   hydrated: boolean;
@@ -84,12 +75,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   activeSemesterId: '',
   coursesBySemester: {},
   periodTimesBySemester: {},
-  settings: {
-    reminderMinutes: 15,
-    showWeekend: false,
-    use24Hour: true,
-    weekStart: 1,
-  },
+  settings: DEFAULT_SETTINGS,
   selectedWeek: null,
 
   hydrate: async () => {
@@ -120,7 +106,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       const activeSemesterId = semesters.some((s) => s.id === savedActive)
         ? savedActive!
         : semesters[semesters.length - 1]!.id;
-      set({ hydrated: true, semesters, activeSemesterId, coursesBySemester, periodTimesBySemester });
+      // 设置从 IndexedDB 恢复，与默认值合并（脏数据逐字段回落）
+      const settings = mergeSettings(await repo.getSetting(SETTINGS_KEY));
+      set({ hydrated: true, semesters, activeSemesterId, coursesBySemester, periodTimesBySemester, settings });
     } finally {
       hydrating = false;
     }
@@ -159,8 +147,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   setSelectedWeek: (week) => set({ selectedWeek: week }),
-  updateSettings: (patch) =>
-    set((state) => ({ settings: { ...state.settings, ...patch } })),
+  updateSettings: (patch) => {
+    // UI 立即生效；持久化异步进行，失败仅告警（不产生未处理 Promise 拒绝）
+    const settings: AppSettings = { ...get().settings, ...patch };
+    set({ settings });
+    getRepository()
+      .setSetting(SETTINGS_KEY, settings)
+      .catch((error: unknown) => {
+        console.warn('[CampusSchedule] 设置持久化失败（仅本次会话生效）:', error);
+      });
+  },
   replaceSemesterData: async (semester, courses, periodTimes) => {
     const repo = getRepository();
     await repo.saveSemester(semester);

@@ -1,13 +1,14 @@
 import { findPeriodDefinition, weekdayName } from '@campusschedule/core';
 import { Link } from 'react-router-dom';
-import { useActiveCourses, useActivePeriodTimes, useCurrentWeek } from '../store/use-app-store';
-import { courseColorIndex, nowMinutes, timeToMinutes, todayWeekday } from '../lib/ui-utils';
+import { useAppStore, useActiveCourses, useActivePeriodTimes, useCurrentWeek } from '../store/use-app-store';
+import { courseColorIndex, formatTime, nowMinutes, timeToMinutes, todayWeekday } from '../lib/ui-utils';
 
 /** 今日概览卡片：正在上课 / 下一节课 / 今日已结束。 */
 export function NextClassCard() {
   const courses = useActiveCourses();
   const periodTimes = useActivePeriodTimes();
   const currentWeek = useCurrentWeek();
+  const use24Hour = useAppStore((s) => s.settings.use24Hour);
   const weekday = todayWeekday();
 
   const slots = courses
@@ -71,7 +72,9 @@ export function NextClassCard() {
             {target.slot.course.name}
           </div>
           <div className="muted">
-            {startDef?.startTime}-{endDef?.endTime}
+            {startDef && endDef
+              ? formatTime(startDef.startTime, use24Hour) + '-' + formatTime(endDef.endTime, use24Hour)
+              : ''}
             {target.slot.session.location ? ' · ' + target.slot.session.location : ''}
             {(target.slot.session.teacherNames ?? target.slot.course.teacherNames).length > 0
               ? ' · ' + (target.slot.session.teacherNames ?? target.slot.course.teacherNames).join('、')
