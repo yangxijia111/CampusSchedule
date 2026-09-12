@@ -22,6 +22,21 @@ export function timeToMinutes(time: string): number {
   return (hour ?? 0) * 60 + (minute ?? 0);
 }
 
+/**
+ * 按 12/24 小时制格式化 "HH:mm" 时间。
+ * 24 小时制原样返回；12 小时制输出中文上午/下午格式（如"下午 2:00"）。
+ */
+export function formatTime(time: string, use24Hour: boolean): string {
+  if (use24Hour) return time;
+  const total = timeToMinutes(time);
+  const hour24 = Math.floor(total / 60);
+  const minute = total % 60;
+  const period = hour24 < 12 ? '上午' : '下午';
+  // 0 点与 12 点在 12 小时制下都显示为 12
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+  return period + ' ' + hour12 + ':' + String(minute).padStart(2, '0');
+}
+
 /** 系统今天的 ISO 日期（本地时区）。 */
 export function todayIsoDate(): string {
   const now = new Date();

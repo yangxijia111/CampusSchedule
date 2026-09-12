@@ -1,7 +1,7 @@
 import type { CourseSlot, PeriodDefinition, Semester, Weekday } from '@campusschedule/core';
 import { dateOfWeek, findPeriodDefinition, weekdayName } from '@campusschedule/core';
 import { Link } from 'react-router-dom';
-import { courseColorIndex, nowMinutes, slotTooltip, timeToMinutes, todayIsoDate, todayWeekday } from '../lib/ui-utils';
+import { courseColorIndex, formatTime, nowMinutes, slotTooltip, timeToMinutes, todayIsoDate, todayWeekday } from '../lib/ui-utils';
 
 interface TimetableGridProps {
   semester: Semester;
@@ -11,6 +11,8 @@ interface TimetableGridProps {
   week: number;
   /** 是否高亮“今天”所在列（展示周等于当前周时）。 */
   highlightToday: boolean;
+  /** 24 小时制显示节次时间。 */
+  use24Hour: boolean;
 }
 
 /** 同一 (星期, 节次区间) 的多个 Session 并排渲染，冲突不丢弃。 */
@@ -35,6 +37,7 @@ export function TimetableGrid({
   weekdays,
   week,
   highlightToday,
+  use24Hour,
 }: TimetableGridProps) {
   const maxPeriod = slots.reduce((max, s) => Math.max(max, s.session.endPeriod), 0);
   const rows = Math.max(maxPeriod, periodTimes.length);
@@ -80,8 +83,8 @@ export function TimetableGrid({
               <span className="period-no">{period}</span>
               {def && (
                 <>
-                  <span>{def.startTime}</span>
-                  <span>{def.endTime}</span>
+                  <span>{formatTime(def.startTime, use24Hour)}</span>
+                  <span>{formatTime(def.endTime, use24Hour)}</span>
                 </>
               )}
             </div>
@@ -136,7 +139,7 @@ export function TimetableGrid({
                     )}
                     {startDef && endDef && (
                       <span className="meta">
-                        {startDef.startTime}-{endDef.endTime}
+                        {formatTime(startDef.startTime, use24Hour)}-{formatTime(endDef.endTime, use24Hour)}
                       </span>
                     )}
                   </Link>

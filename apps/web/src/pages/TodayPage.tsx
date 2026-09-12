@@ -37,7 +37,8 @@ export function TodayPage() {
     );
   }
 
-  const allWeekdays: Weekday[] = [1, 2, 3, 4, 5, 6, 7];
+  const allWeekdays: Weekday[] =
+    settings.weekStart === 7 ? [7, 1, 2, 3, 4, 5, 6] : [1, 2, 3, 4, 5, 6, 7];
   const weekdays = settings.showWeekend ? allWeekdays : allWeekdays.filter((d) => d <= 5);
 
   const slots = sessionsForWeek(courses, displayWeek);
@@ -117,6 +118,7 @@ export function TodayPage() {
           weekdays={weekdays}
           week={displayWeek}
           highlightToday={displayWeek === currentWeek}
+          use24Hour={settings.use24Hour}
         />
       )}
 
