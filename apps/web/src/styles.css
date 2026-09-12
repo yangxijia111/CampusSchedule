@@ -117,6 +117,132 @@ a {
   margin: 16px 0 8px;
 }
 
+/* ===== 移动端当日时间轴（<768px 生效） ===== */
+.mobile-tabs {
+  display: none;
+}
+
+.daily-view {
+  display: none;
+}
+
+.daily-list {
+  padding: 12px 16px;
+}
+
+.daily-heading {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.daily-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border);
+  text-decoration: none;
+  color: inherit;
+}
+
+.daily-item .daily-time {
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 52px;
+}
+
+.daily-item .daily-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.daily-item .name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.daily-item .meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.daily-item .daily-status {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--border);
+  white-space: nowrap;
+}
+
+.daily-item.ongoing {
+  border-color: var(--success);
+}
+
+.daily-item.ongoing .daily-status {
+  background: var(--success);
+  color: #fff;
+}
+
+.daily-item.next {
+  border-color: var(--primary);
+}
+
+.daily-item.next .daily-status {
+  background: var(--primary);
+  color: #fff;
+}
+
+.daily-item.past {
+  opacity: 0.55;
+}
+
+@media (max-width: 767px) {
+  .mobile-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .mobile-tab {
+    flex: 1;
+    padding: 8px 0;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: 999px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .mobile-tab.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+  }
+
+  /* 默认展示当日时间轴，隐藏周视图；"本周"页签时反过来 */
+  .daily-view {
+    display: block;
+  }
+
+  .week-view {
+    display: none;
+  }
+
+  .week-view.mobile-show-week {
+    display: block;
+  }
+}
+
 /* ===== 周切换 ===== */
 .week-switcher {
   display: flex;
