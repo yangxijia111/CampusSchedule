@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { loadDemoIfEmpty } from './helpers';
 
 /**
  * Issue #2：设置持久化 E2E。
@@ -8,7 +9,7 @@ import { expect, test } from '@playwright/test';
 test.describe('设置持久化', () => {
   test('修改设置后刷新，设置与界面效果保持', async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('.timetable')).toBeVisible();
+    await loadDemoIfEmpty(page);
 
     await page.goto('/settings');
     // 关闭 24 小时制、开启显示周末

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { exportBackup } from '@campusschedule/storage';
 import { useAppStore } from '../store/use-app-store';
 import { getRepository } from '../lib/storage';
@@ -6,8 +7,10 @@ import { getRepository } from '../lib/storage';
 export function SettingsPage() {
   const settings = useAppStore((s) => s.settings);
   const updateSettings = useAppStore((s) => s.updateSettings);
+  const clearAllData = useAppStore((s) => s.clearAllData);
   const [confirmClear, setConfirmClear] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
+  const navigate = useNavigate();
 
   async function handleExport(): Promise<void> {
     try {
@@ -26,10 +29,15 @@ export function SettingsPage() {
   }
 
   async function handleClearAll(): Promise<void> {
-    const repo = getRepository();
-    await repo.clearAll();
-    setStatusMessage('本地数据已清除，即将刷新…');
-    setTimeout(() => window.location.reload(), 800);
+    try {
+      await clearAllData();
+      // 清空后回到首页空状态（不再自动恢复示例数据）
+      navigate('/');
+    } catch (error) {
+      setStatusMessage(
+        '清除失败：' + (error instanceof Error ? error.message : String(error)),
+      );
+    }
   }
 
   return (

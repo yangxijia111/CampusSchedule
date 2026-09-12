@@ -108,6 +108,15 @@ a {
   color: var(--text-secondary);
 }
 
+/* 空状态引导按钮组 */
+.empty-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 16px 0 8px;
+}
+
 /* ===== 周切换 ===== */
 .week-switcher {
   display: flex;
